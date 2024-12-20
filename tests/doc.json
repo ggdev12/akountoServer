@@ -1,0 +1,36 @@
+{
+  "source": {
+    "id": "e251da27-1508-4069-915b-64f806bc1e8e",
+    "type": "Invoice",
+    "status": "Inbox",
+    "file_path": "https://sjc1.vultrobjects.com/kountofiles/source/4948636466-df2919fd-f7ac-42d9-973a-ac86f8e68653-fd85743e-10af-4d74-b395-56c071c255f5.pdf",
+    "processed_data": "",
+    "error_message": null,
+    "createdAt": "2024-04-04 15:39:38.177 +00:00",
+    "updatedAt": "2024-04-04 15:40:34.196 +00:00",
+    "CompanyId": "82ad37f4-2182-457c-a35b-a88e8b03eccd",
+    "CustomerId": null,
+    "VendorId": null,
+    "IntegrationId": "d276b0d4-10b2-4113-a4c2-e99e67809e4b",
+    "UserId": "10ad2357-4133-4067-be7b-6cdb3d7f2231"
+  },
+  "processed": {
+    "id": "e251da27-1508-4069-915b-64f806bc1e8e",
+    "type": "Invoice",
+    "status": "Extraction",
+    "file_path": "https://sjc1.vultrobjects.com/kountofiles/source/4948636466-df2919fd-f7ac-42d9-973a-ac86f8e68653-fd85743e-10af-4d74-b395-56c071c255f5.pdf",
+    "processed_data": "{\"processed_json\":{\"InvoiceNumber\":\"4948636466\",\"Date\":\"31 Mar 2024\",\"DueDate\":\"30 Apr 2024\",\"Currency\":\"USD\",\"PaymentTerms\":\"Net 30\",\"Subtotal\":0.12,\"TotalAmount\":0.12,\"CustomerDetails\":{\"CompanyName\":\"KOUNTO DIGITAL - FZE\",\"BillingAddress\":\"DSO-DPD-A5-FZD-1020 Dubai Digital Park Office A5, Dubai Silicon Oasis, Dubai, United Arab Emirates\"},\"Items\":[{\"Description\":\"Invalid activity - Original invoice #: 4928267994, original month of service: Feb 2024, account budget name: KOUNTO DIGITAL - FZE - Feb 6, 2024, campaign name: AR-CB-GS-08-feb-2024\",\"Quantity\":14,\"UnitPrice\":5.94,\"TotalAmount\":0.12}],\"Notes\":\"PO# or invoice numbers associated with the invalid activity might have changed if there was a rebill.\",\"VendorDetails\":{\"CompanyName\":\"Google Ireland Limited\",\"Address\":\"Gordon House, Barrow Street, Dublin 4, Ireland\",\"BankDetails\":{\"AccountHolderName\":\"Google Ireland Limited\",\"BankName\":\"Citibank\",\"AccountNumber\":\"11074911\",\"RoutingNumber\":\"GB37CITI18500811074911\"}},\"CreatedBy\":\"collections@google.com\"},\"raw_json\":\"```json\\n{\\n  \\\"InvoiceHeader\\\": {\\n    \\\"CompanyName\\\": \\\"Google\\\",\\n    \\\"InvoiceTitle\\\": \\\"Invoice\\\",\\n    \\\"InvoiceNumber\\\": \\\"4948636466\\\",\\n    \\\"CompanyLogo\\\": \\\"path_to_logo\\\"\\n  },\\n  \\\"BillingDetails\\\": {\\n    \\\"BillTo\\\": {\\n      \\\"CompanyName\\\": \\\"KOUNTO DIGITAL - FZE\\\",\\n      \\\"Address\\\": \\\"DSO-DPD-A5-FZD-1020 Dubai Digital Park Office A5\\\",\\n      \\\"City\\\": \\\"Dubai Silicon Oasis\\\",\\n      \\\"Country\\\": \\\"Dubai\\\",\\n      \\\"Region\\\": \\\"United Arab Emirates\\\"\\n    },\\n    \\\"InvoiceDetails\\\": {\\n      \\\"InvoiceNumber\\\": \\\"4948636466\\\",\\n      \\\"InvoiceDate\\\": \\\"31 Mar 2024\\\",\\n      \\\"PaymentTerms\\\": \\\"Net 30\\\",\\n      \\\"BillingID\\\": \\\"8059-5581-7910\\\",\\n      \\\"AccountID\\\": \\\"895-291-6576\\\"\\n    },\\n    \\\"CompanyDetails\\\": {\\n      \\\"CompanyName\\\": \\\"Google Ireland Limited\\\",\\n      \\\"Address\\\": \\\"Gordon House, Barrow Street\\\",\\n      \\\"City\\\": \\\"Dublin 4\\\",\\n      \\\"Country\\\": \\\"Ireland\\\",\\n      \\\"VATNumber\\\": \\\"IE 6388047V\\\"\\n    }\\n  },\\n  \\\"InvoiceSummary\\\": {\\n    \\\"AdsPlatform\\\": \\\"Google Ads\\\",\\n    \\\"TotalAmountDue\\\": {\\n      \\\"Currency\\\": \\\"USD\\\",\\n      \\\"Amount\\\": 0.12,\\n      \\\"DueDate\\\": \\\"30 Apr 2024\\\"\\n    },\\n    \\\"SummaryPeriod\\\": {\\n      \\\"StartDate\\\": \\\"1 Mar 2024\\\",\\n      \\\"EndDate\\\": \\\"31 Mar 2024\\\",\\n      \\\"PayInUSD\\\": {\\n        \\\"Subtotal\\\": 0.12,\\n        \\\"VAT\\\": 0.00,\\n        \\\"TotalAmount\\\": 0.12\\n      }\\n    }\\n  },\\n  \\\"RemittanceInstructions\\\": {\\n    \\\"Message\\\": \\\"To help ensure that your payments are matched correctly and on time, include invoice numbers when making your payment. If you're paying for multiple invoices, email collections@google.com and include your company name, total payment amount, invoice numbers and respective amounts for each invoice. Send your payments only to the bank account listed on this invoice.\\\",\\n    \\\"PaymentDetails\\\": {\\n      \\\"ToPayByBankTransfer\\\": {\\n        \\\"AccountHolderName\\\": \\\"Google Ireland Limited\\\",\\n        \\\"Bank\\\": {\\n          \\\"Name\\\": \\\"Citibank\\\",\\n          \\\"IBAN\\\": \\\"GB37CITI18500811074911\\\",\\n          \\\"SWIFTBIC\\\": \\\"CITIGB2L\\\",\\n          \\\"AccountNumber\\\": \\\"11074911\\\"\\n        },\\n        \\\"BankBranchAddress\\\": {\\n          \\\"BankName\\\": \\\"Citibank, N.A. London Branch\\\",\\n          \\\"Address\\\": \\\"Citigroup Centre, Canada Square, Canary Wharf\\\",\\n          \\\"City\\\": \\\"LONDON\\\",\\n          \\\"PostalCode\\\": \\\"E14 5LB\\\",\\n          \\\"Country\\\": \\\"UK\\\"\\n        }\\n      }\\n    }\\n  },\\n  \\\"InvoiceLineItems\\\": [\\n    {\\n      \\\"Account\\\": \\\"WU_01\\\",\\n      \\\"AccountID\\\": \\\"895-291-6576\\\",\\n      \\\"AccountBudget\\\": \\\"KOUNTO DIGITAL - FZE - Feb 6, 2024\\\",\\n      \\\"Period\\\": \\\"1 Mar 2024 - 31 Mar 2024\\\",\\n      \\\"Description\\\": \\\"Invalid activity - Original invoice #: 4928267994, original month of service: Feb 2024, account budget name: KOUNTO DIGITAL - FZE - Feb 6, 2024, campaign name: AR-CB-GS-08-feb-2024\\\",\\n      \\\"Quantity\\\": 14,\\n      \\\"Units\\\": \\\"Clicks\\\",\\n      \\\"Transaction\\\": [\\n        {\\n          \\\"Amount(USD)\\\": 5.94\\n        },\\n        {\\n          \\\"Credit\\\": -5.82\\n        }\\n      ],\\n      \\\"Amounts\\\": {\\n        \\\"SubtotalInUSD\\\": 0.12,\\n        \\\"VAT\\\": 0.00,\\n        \\\"TotalInUSD\\\": 0.12\\n      }\\n    }\\n  ],\\n  \\\"AdditionalNotes\\\": [\\n    {\\n      \\\"Note\\\": \\\"PO# or invoice numbers associated with the invalid activity might have changed if there was a rebill.\\\"\\n    }\\n  ],\\n  \\\"ContactInfo\\\": {\\n    \\\"Email\\\": \\\"collections@google.com\\\"\\n  },\\n  \\\"PageInfo\\\": {\\n    \\\"CurrentPage\\\": 2,\\n    \\\"TotalPages\\\": 2\\n  }\\n}\\n```\\n\\nThis JSON representation captures the information from the provided two-page financial invoice, maintaining the structure and hierarchy as in the original documents.\"}",
+    "error_message": null,
+    "createdAt": "2024-04-04 15:39:38.177 +00:00",
+    "updatedAt": "2024-04-04 15:40:34.196 +00:00",
+    "CompanyId": "82ad37f4-2182-457c-a35b-a88e8b03eccd",
+    "CustomerId": null,
+    "VendorId": null,
+    "IntegrationId": "d276b0d4-10b2-4113-a4c2-e99e67809e4b",
+    "UserId": "10ad2357-4133-4067-be7b-6cdb3d7f2231",
+    "processedImages": [
+      "https://sjc1.vultrobjects.com/kountofiles/processed/4948636466-df2919fd-f7ac-42d9-973a-ac86f8e68653-fd85743e-10af-4d74-b395-56c071c255f5_page_1.jpeg",
+      "https://sjc1.vultrobjects.com/kountofiles/processed/4948636466-df2919fd-f7ac-42d9-973a-ac86f8e68653-fd85743e-10af-4d74-b395-56c071c255f5_page_2.jpeg"
+    ]
+  }
+}
