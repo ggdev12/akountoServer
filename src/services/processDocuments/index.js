@@ -24,7 +24,6 @@ const quickbooksApiClient = require("../../channels/quickbooks/apiClient/quickbo
 
 const aiService = new AI();
 
-// Modified validation function with better error handling and logging
 const validateInvoiceData = (invoiceData) => {
   const requiredFields = ["CustomerRef", "Line"];
   const errors = [];
@@ -194,8 +193,16 @@ const processDocument = async (document) => {
     }
 
     const integration = await Integration.findOne({
-      where: { CompanyId: document.CompanyId },
+      where: {
+        CompanyId: document.CompanyId,
+        status: "Connected", // Add this condition
+      },
     });
+    if (!integration) {
+      throw new Error(
+        "No active QuickBooks integration found. Please connect to QuickBooks first.",
+      );
+    }
 
     const quickbooksApi = new quickbooksApiClient(
       integration.credentials,
@@ -276,9 +283,14 @@ const processReceiptDocument = async (document) => {
   const integration = await Integration.findOne({
     where: {
       CompanyId: document.CompanyId,
+      status: "Connected", // Add this condition
     },
   });
-
+  if (!integration) {
+    throw new Error(
+      "No active QuickBooks integration found. Please connect to QuickBooks first.",
+    );
+  }
   const quickbooksApi = new quickbooksApiClient(
     integration.credentials,
     integration.id,
@@ -354,9 +366,14 @@ const createInvoice = async (invoiceJson, document) => {
   const integration = await Integration.findOne({
     where: {
       CompanyId: document.CompanyId,
+      status: "Connected", // Add this condition
     },
   });
-
+  if (!integration) {
+    throw new Error(
+      "No active QuickBooks integration found. Please connect to QuickBooks first.",
+    );
+  }
   const quickbooksApi = new quickbooksApiClient(
     integration.credentials,
     integration.id,
@@ -507,13 +524,17 @@ async function createReceipt(receiptJson, document) {
         UserId: document.UserId,
       },
     });
-
     const integration = await Integration.findOne({
       where: {
         CompanyId: document.CompanyId,
+        status: "Connected", // Add this condition
       },
     });
-
+    if (!integration) {
+      throw new Error(
+        "No active QuickBooks integration found. Please connect to QuickBooks first.",
+      );
+    }
     const quickbooksApi = new quickbooksApiClient(
       integration.credentials,
       integration.id,

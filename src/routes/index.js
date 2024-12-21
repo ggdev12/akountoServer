@@ -68,6 +68,7 @@ router.post("/auth/register", async (req, res) => {
 router.post("/auth/login", async (req, res) => {
   try {
     const user = await User.findOne({ where: { email: req.body.email } });
+
     if (!user) {
       res.status(404).json({ success: false, message: "User not found" });
       return;
@@ -80,8 +81,18 @@ router.post("/auth/login", async (req, res) => {
       res.status(401).json({ success: false, message: "Incorrect password" });
       return;
     }
+    const company = await Company.findOne({
+      where: {
+        UserId: user.id,
+      },
+    });
+    if (!company) {
+      res
+        .status(404)
+        .json({ success: false, message: "Company not found for this user" });
+    }
     const token = jwt.sign({ id: user.id }, secret, { expiresIn: "30d" });
-    res.json({ success: true, token });
+    res.json({ success: true, token, companyId: company.id });
   } catch (error) {
     console.error("Error during login:", error);
     res.status(500).json({ success: false, message: "Internal server error" });
@@ -206,7 +217,7 @@ router.get("/quickbooks/callback", async (req, res) => {
     // Update the integration with credentials AND status
     await Integration.update(
       {
-        credentials: JSON.stringify(credentials),
+        credentials: credentials,
         status: "Connected", // Set status to Connected when we get credentials
       },
       {

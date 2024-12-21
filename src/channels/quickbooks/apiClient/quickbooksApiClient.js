@@ -15,12 +15,22 @@ const oauthClient = new OAuthClient({
 
 class quickbooksApiClient {
   constructor(config, integrationId) {
+    console.log("Constructor config received:", config);
+
+    if (typeof config === "string") {
+      config = JSON.parse(config);
+    }
+
+    if (!config || !config.realmId) {
+      throw new Error("Invalid config: missing realmId");
+    }
+
     this.realmId = config.realmId;
     this.config = config;
     this.baseUrl = `https://sandbox-quickbooks.api.intuit.com/v3/company/${config.realmId}`;
     this.integrationId = integrationId;
 
-    // oauthClient.setToken(this.config);
+    oauthClient.setToken(this.config); // Set token immediately
   }
 
   // QuickBook API credentials validation
@@ -62,61 +72,70 @@ class quickbooksApiClient {
     return authUri;
   }
 
-
-
   async createToken(token) {
     const res_token = await oauthClient.createToken(token);
     return res_token;
   }
-
   async refreshOrSetToken() {
     const isValid = oauthClient.isAccessTokenValid();
-
-    console.log("isToeknValid ---->>>>", isValid);
-
-    const config = this.config;
-    const integrationId = this.integrationId;
-
-    oauthClient.setToken(this.config);
+    console.log("isTokenValid ---->>>>", isValid);
+    console.log("Current config:", JSON.stringify(this.config, null, 2)); // Added logging
 
     try {
+      // First set the current token
+      if (typeof this.config === "string") {
+        this.config = JSON.parse(this.config);
+      }
+
+      // Add validation
+      if (!this.config.refresh_token) {
+        throw new Error("No refresh token found in config");
+      }
+
+      oauthClient.setToken(this.config);
+
       if (!isValid) {
-        await oauthClient
-          .refreshUsingToken(this.config.refresh_token)
-          .then(async function (authResponse) {
-            const refreshToken = authResponse.json;
+        console.log("About to refresh token with:", this.config.refresh_token); // Added logging
+        const authResponse = await oauthClient.refreshUsingToken(
+          this.config.refresh_token,
+        );
 
-            const credentials = {
-              realmId: config.realmId,
-              token_type: refreshToken.token_type,
-              access_token: refreshToken.access_token,
-              expires_in: refreshToken.expires_in,
-              x_refresh_token_expires_in:
-                refreshToken.x_refresh_token_expires_in,
-              refresh_token: refreshToken.refresh_token,
-              id_token: config.id_token,
-              latency: config.latency,
-            };
+        console.log(
+          "Auth response:",
+          JSON.stringify(authResponse.json, null, 2),
+        ); // Added logging
+        const refreshToken = authResponse.json;
 
-            console.log('access_credentails ---->>>', credentials)
+        const credentials = {
+          realmId: this.config.realmId,
+          token_type: refreshToken.token_type,
+          access_token: refreshToken.access_token,
+          expires_in: refreshToken.expires_in,
+          x_refresh_token_expires_in: refreshToken.x_refresh_token_expires_in,
+          refresh_token: refreshToken.refresh_token,
+          id_token: this.config.id_token,
+          latency: this.config.latency,
+        };
 
-            await Integration.update(
-              {
-                credentials,
-              },
-              {
-                where: { id: integrationId },
-              },
-            );
+        console.log(
+          "new_credentials ---->>>",
+          JSON.stringify(credentials, null, 2),
+        );
 
-            oauthClient.setToken(credentials);
-          })
-          .catch(function (e) {
-            console.error("The error message is :" + e);
-          });
+        // Fixed version - don't double stringify
+        await Integration.update(
+          { credentials: credentials }, // Or JSON.stringify(credentials) only once if needed
+          { where: { id: this.integrationId } }, // Use this.integrationId
+        );
+
+        // Update the current instance config
+        this.config = credentials;
+        oauthClient.setToken(credentials);
       }
     } catch (error) {
-      console.error("Error in refreshOrSetToken : ", error);
+      console.error("Error in refreshOrSetToken:", error.message);
+      console.error("Full error:", error);
+      throw error;
     }
   }
 
