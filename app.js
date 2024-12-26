@@ -50,25 +50,12 @@ app.use((err, req, res, next) => {
     stack: err.stack,
     code: err.code,
     status: err.status,
+    route: req.originalUrl,
+    method: req.method,
   });
-
-  if (err.code === "ETIMEDOUT" || err.message.includes("timeout")) {
-    return res.status(408).json({
-      error: "Request timeout",
-      message: "The request took too long to process. Please try again.",
-    });
-  }
-
-  if (err instanceof SyntaxError && err.status === 413) {
-    return res.status(413).json({
-      error: "Payload too large",
-      message: "The uploaded file is too large. Maximum size is 50MB.",
-    });
-  }
 
   res.status(err.status || 500).json({
     error: err.message || "Internal server error",
-    stack: process.env.NODE_ENV === "development" ? err.stack : undefined,
   });
 });
 
