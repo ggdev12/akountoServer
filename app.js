@@ -19,14 +19,13 @@ app.use(
   }),
 );
 
-app.use(timeout("300s"));
+app.use(timeout("600s"));
 
 app.use(express.json({ limit: "50mb" }));
 app.use(
   express.urlencoded({
     limit: "50mb",
     extended: true,
-    parameterLimit: 50000,
   }),
 );
 

@@ -160,6 +160,7 @@ router.get("/quickbooks/auth", authenticateToken, async (req, res) => {
       where: {
         CompanyId: companyId,
         service_type: "Quickbooks",
+        status: "Connected",
       },
       order: [["createdAt", "DESC"]],
     });
