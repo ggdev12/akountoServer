@@ -15,15 +15,15 @@ const oauthClient = new OAuthClient({
 
 class quickbooksApiClient {
   constructor(config, integrationId) {
-    console.log("Constructor config received:", config);
+    console.log("Constructor config received:", config, integrationId);
 
     if (typeof config === "string") {
       config = JSON.parse(config);
     }
 
-    if (!config || !config.realmId) {
-      throw new Error("Invalid config: missing realmId");
-    }
+    // if (!config || !config.realmId) {
+    //   throw new Error("Invalid config: missing realmId");
+    // }
 
     this.realmId = config.realmId;
     this.config = config;
