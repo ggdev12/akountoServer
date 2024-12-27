@@ -5,7 +5,7 @@ const { uploadFileFromBuffer } = require("../../../services/storage");
 const { Integration } = require("../../../db/models");
 const redirectUri =
   process.env.quickbooksRedirectUri ||
-  "https://api.kounto.ai/api/quickbooks/callback/";
+  "https://api.kounto.ai/api/quickbooks/callback";
 const oauthClient = new OAuthClient({
   clientId: process.env.quickbooksClientId,
   clientSecret: process.env.quickbooksClientSec,
@@ -15,15 +15,15 @@ const oauthClient = new OAuthClient({
 
 class quickbooksApiClient {
   constructor(config, integrationId) {
-    console.log("Constructor config received:", config, integrationId);
+    console.log("Constructor config received:", config);
 
     if (typeof config === "string") {
       config = JSON.parse(config);
     }
 
-    // if (!config || !config.realmId) {
-    //   throw new Error("Invalid config: missing realmId");
-    // }
+    if (!config || !config.realmId) {
+      throw new Error("Invalid config: missing realmId");
+    }
 
     this.realmId = config.realmId;
     this.config = config;
