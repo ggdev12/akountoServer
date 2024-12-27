@@ -21,9 +21,9 @@ class quickbooksApiClient {
       config = JSON.parse(config);
     }
 
-    if (!config || !config.realmId) {
-      throw new Error("Invalid config: missing realmId");
-    }
+    // if (!config || !config.realmId) {
+    //   throw new Error("Invalid config: missing realmId");
+    // }
 
     this.realmId = config.realmId;
     this.config = config;
