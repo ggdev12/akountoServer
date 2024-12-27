@@ -183,7 +183,7 @@ router.get("/quickbooks/auth", authenticateToken, async (req, res) => {
       CompanyId: companyId,
       UserId: req.userId,
     });
-
+    console.log("integration: ", integration);
     const authUri = await quickBookClient.getOAuthRedirectURL(integration.id);
     res.status(200).send(authUri);
   } catch (error) {
