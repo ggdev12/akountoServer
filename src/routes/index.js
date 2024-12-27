@@ -164,6 +164,7 @@ router.get("/quickbooks/auth", authenticateToken, async (req, res) => {
       },
       order: [["createdAt", "DESC"]],
     });
+    console.log("integration 1: ", existingIntegration);
 
     if (existingIntegration) {
       // Update existing integration's status to Disconnected
@@ -172,8 +173,10 @@ router.get("/quickbooks/auth", authenticateToken, async (req, res) => {
         credentials: JSON.stringify({}),
       });
     }
+    console.log("integration 2: ");
 
     const quickBookClient = new quickbooksApiClient({});
+    console.log("integration 3: ");
 
     const integration = await Integration.create({
       name: "Quickbooks",
