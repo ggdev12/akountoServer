@@ -5,7 +5,7 @@ const OAuthClient = require("intuit-oauth");
 const { Integration } = require("../../db/models");
 const redirectUri =
   process.env.quickbooksRedirectUri ||
-  "https://app.kounto.ai/api/quickbooks/callback";
+  "https://app.kounto.ai/api/quickbooks/callback/";
 const oauthClient = new OAuthClient({
   clientId: process.env.quickbooksClientId,
   clientSecret: process.env.quickbooksClientSec,
@@ -28,8 +28,7 @@ class AI {
     );
     this.invoiceJsonSchema = require("./schemas").invoiceJsonSchema;
     this.purchaseJsonSchema = require("./schemas").purchaseJsonSchema;
-    this.quickbooksBaseUrl =
-      "https://sandbox-quickbooks.api.intuit.com/v3/company";
+    this.quickbooksBaseUrl = "https://quickbooks.api.intuit.com/v3/company/";
     //this.quickbooksBaseUrl = 'https://quickbooks.api.intuit.com/v3/company';
   }
 
