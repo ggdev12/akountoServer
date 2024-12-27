@@ -5,7 +5,7 @@ const OAuthClient = require("intuit-oauth");
 const { Integration } = require("../../db/models");
 const redirectUri =
   process.env.quickbooksRedirectUri ||
-  "http://localhost:4000/api/quickbooks/callback";
+  "https://app.kounto.ai/api/quickbooks/callback";
 const oauthClient = new OAuthClient({
   clientId: process.env.quickbooksClientId,
   clientSecret: process.env.quickbooksClientSec,
