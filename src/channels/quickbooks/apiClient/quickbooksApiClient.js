@@ -27,7 +27,7 @@ class quickbooksApiClient {
 
     this.realmId = config.realmId;
     this.config = config;
-    this.baseUrl = `https://sandbox-quickbooks.api.intuit.com/v3/company/${config.realmId}`;
+    this.baseUrl = `https://quickbooks.api.intuit.com/v3/company/${config.realmId}`;
     this.integrationId = integrationId;
 
     oauthClient.setToken(this.config); // Set token immediately
