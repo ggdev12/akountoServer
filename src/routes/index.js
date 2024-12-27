@@ -5,7 +5,7 @@ const { Op, where } = require("sequelize");
 
 const AI = require("../services/openai/index");
 
-const appBaseURL = process.env.appBaseURL || "http://localhost:3000/";
+const appBaseURL = process.env.appBaseURL || "https://app.kounto.ai";
 
 const {
   processDocument,
