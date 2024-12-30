@@ -1055,14 +1055,37 @@ const validateUploadRequest = async (req, res, next) => {
 router.post(
   "/companies/:companyId/documents/upload",
   authenticateToken,
-  upload.single("file"),
+  async (req, res, next) => {
+    // Handle file upload with custom error handling
+    try {
+      await new Promise((resolve, reject) => {
+        upload.single("file")(req, res, (err) => {
+          if (err) {
+            console.error("Upload error:", err);
+            reject(err);
+          } else {
+            resolve();
+          }
+        });
+      });
+      next();
+    } catch (error) {
+      console.error("File upload failed:", error);
+      return res.status(500).json({
+        error: "File upload failed",
+        details: error.message,
+      });
+    }
+  },
   validateUploadRequest,
   async (req, res) => {
     const transaction = await sequelize.transaction();
+    console.log("Starting document processing...");
 
     try {
-      console.log("companyID:", req.params.companyId, "userId:", req.userId);
+      console.log("CompanyID:", req.params.companyId, "UserID:", req.userId);
 
+      // Find company with transaction
       let company = await Company.findOne({
         where: {
           id: req.params.companyId,
@@ -1077,10 +1100,11 @@ router.post(
         return res.status(404).json({ error: "Company not found" });
       }
 
+      // Ensure company has integration
       company = await ensureCompanyIntegration(company, transaction);
-
       const integrationId = company.Integrations[0].id;
 
+      console.log("Creating document record...");
       const document = await Document.create(
         {
           type: req.body.type,
@@ -1093,6 +1117,7 @@ router.post(
         { transaction },
       );
 
+      console.log("Creating entity mapping...");
       const entityMapping = await EntityMapping.create(
         {
           entity_type: "Document",
@@ -1105,6 +1130,7 @@ router.post(
         { transaction },
       );
 
+      console.log("Creating sync log...");
       await SyncLog.create(
         {
           entity_type: "Document",
@@ -1121,21 +1147,25 @@ router.post(
 
       // Commit transaction
       await transaction.commit();
+      console.log("Transaction committed successfully");
 
       // Process document after transaction is committed
       try {
+        console.log("Starting document processing...");
         if (document.type === "Invoice") {
           await processDocument(document);
         } else {
           await processReceiptDocument(document);
         }
 
-        res.status(201).json({
+        return res.status(201).json({
           message: "Document uploaded and processed successfully",
           document: document,
         });
       } catch (processingError) {
-        // If processing fails, we update the document status but don't fail the request
+        console.error("Document processing failed:", processingError);
+
+        // Update document status on processing error
         await Document.update(
           {
             status: "ProcessingError",
@@ -1146,16 +1176,17 @@ router.post(
           },
         );
 
-        res.status(201).json({
+        return res.status(201).json({
           message: "Document uploaded but processing failed",
           document: document,
           error: processingError.message,
         });
       }
     } catch (error) {
+      console.error("Transaction error:", error);
       await transaction.rollback();
-      console.error("Document upload error:", error);
-      res.status(500).json({
+
+      return res.status(500).json({
         error: "Failed to process document",
         details: error.message,
       });
