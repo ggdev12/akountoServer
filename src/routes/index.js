@@ -1055,27 +1055,17 @@ const validateUploadRequest = async (req, res, next) => {
 router.post(
   "/companies/:companyId/documents/upload",
   authenticateToken,
-  async (req, res, next) => {
-    // Handle file upload with custom error handling
-    try {
-      await new Promise((resolve, reject) => {
-        upload.single("file")(req, res, (err) => {
-          if (err) {
-            console.error("Upload error:", err);
-            reject(err);
-          } else {
-            resolve();
-          }
+  (req, res, next) => {
+    upload.single("file")(req, res, (err) => {
+      if (err) {
+        console.error("File upload error:", err);
+        return res.status(500).json({
+          error: "File upload failed",
+          details: err.message,
         });
-      });
+      }
       next();
-    } catch (error) {
-      console.error("File upload failed:", error);
-      return res.status(500).json({
-        error: "File upload failed",
-        details: error.message,
-      });
-    }
+    });
   },
   validateUploadRequest,
   async (req, res) => {

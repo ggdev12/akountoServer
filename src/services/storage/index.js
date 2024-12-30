@@ -1,58 +1,46 @@
-const AWS = require("aws-sdk");
 const multer = require("multer");
+const AWS = require("aws-sdk");
 const multerS3 = require("multer-s3");
 const uuidv4 = require("uuid").v4;
 const https = require("https");
 
 const Bucket = "akountofiles";
 
-// Create a basic HTTPS agent
-const agent = new https.Agent({
-  keepAlive: true,
-  keepAliveMsecs: 1000,
-  maxSockets: 50,
-  timeout: 60000,
-});
-
-// Simplify AWS configuration
 AWS.config = new AWS.Config({
   accessKeyId: "WN72022TEDXURTSOTLPJ",
   secretAccessKey: "XNpSWyTXp018YREiXiaZ9T2qJGN5SsZEyBR7vvYg",
   endpoint: "https://del1.vultrobjects.com",
   s3ForcePathStyle: true,
   signatureVersion: "v4",
-  httpOptions: { agent },
+  httpOptions: {
+    timeout: 300000,
+    connectTimeout: 60000,
+    agent: new https.Agent({
+      keepAlive: true,
+      maxSockets: 25,
+    }),
+  },
 });
 
-// Create S3 instance with specific configuration
-const s3 = new AWS.S3({
-  maxRetries: 5,
-  logger: console,
-  computeChecksums: true,
-  multipartUploadThreshold: 5 * 1024 * 1024, // 5 MB
-  multipartUploadSize: 5 * 1024 * 1024, // 5 MB per part
-});
+const s3 = new AWS.S3();
 
-// Add debugging to multer configuration
+// Create multer instance
 const upload = multer({
   storage: multerS3({
     s3: s3,
     bucket: Bucket,
     acl: "public-read",
     key: function (req, file, cb) {
-      console.log("Processing file:", file.originalname);
       const fileExtension = file.originalname.split(".").pop();
       const newFileName = `source/${uuidv4()}.${fileExtension}`;
-      console.log("Generated key:", newFileName);
       cb(null, newFileName);
     },
     contentType: multerS3.AUTO_CONTENT_TYPE,
   }),
   limits: {
     fileSize: 50 * 1024 * 1024, // 50MB
-    files: 1,
   },
-}).single("file"); // Explicitly configure for single file upload
+});
 
 // Wrap multer in a promise with timeout handling
 const uploadWithTimeout = (req, res) => {
