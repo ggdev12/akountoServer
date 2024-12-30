@@ -11,7 +11,15 @@ AWS.config.update({
   endpoint: new AWS.Endpoint("del1.vultrobjects.com"),
   s3ForcePathStyle: true,
   signatureVersion: "v4",
+  httpOptions: {
+    timeout: 300000, // 5 minutes
+    connectTimeout: 60000, // 1 minute for connection establishment
+    agent: new AWS.HttpClient(), // Force new connection agent
+  },
+  maxRetries: 3,
+  retryDelayOptions: { base: 1000 },
 });
+
 const s3 = new AWS.S3();
 
 const upload = multer({
@@ -24,12 +32,15 @@ const upload = multer({
     },
     key: function (req, file, cb) {
       const originalName = file.originalname;
-
       const fileExtension = originalName.split(".").pop();
       const newFileName = `source/${uuidv4()}.${fileExtension}`;
       cb(null, newFileName);
     },
   }),
+  limits: {
+    fileSize: 20 * 1024 * 1024,
+    files: 10,
+  },
 });
 
 const downloadFileAsBuffer = async (fileKeys) => {
@@ -38,13 +49,19 @@ const downloadFileAsBuffer = async (fileKeys) => {
   const params = {
     Bucket: fileKeys.bucketName,
     Key: fileKey,
+    Expires: 60 * 60, // URL expiration in seconds
   };
+
   console.log("Downloading file from", fileKey);
 
   try {
     const data = await s3.getObject(params).promise();
     return data.Body;
   } catch (error) {
+    if (error.code === "TimeoutError") {
+      console.error("Connection timed out while downloading file:", fileKey);
+      throw new Error(`Connection timeout while downloading file: ${fileKey}`);
+    }
     console.error("Error downloading file:", error.message, fileKey);
     throw error;
   }

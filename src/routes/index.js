@@ -1016,20 +1016,16 @@ router.delete(
 
 // Document Routes
 
-// Helper function to ensure company has a default integration
 async function ensureCompanyIntegration(company) {
   if (!company.Integrations || company.Integrations.length === 0) {
-    // Create a default integration for the company
-    const defaultIntegration = await Integration.create({
+    await Integration.create({
       name: "Default Integration",
       type: "DEFAULT",
       status: "ACTIVE",
       CompanyId: company.id,
       UserId: company.UserId,
-      // Add any other required fields for your Integration model
     });
 
-    // Refresh the company object with the new integration
     return await Company.findOne({
       where: { id: company.id },
       include: [Integration],
@@ -1081,12 +1077,10 @@ router.post(
         return res.status(404).json({ error: "Company not found" });
       }
 
-      // Ensure company has an integration
       company = await ensureCompanyIntegration(company, transaction);
 
       const integrationId = company.Integrations[0].id;
 
-      // Create document with transaction
       const document = await Document.create(
         {
           type: req.body.type,
@@ -1099,7 +1093,6 @@ router.post(
         { transaction },
       );
 
-      // Create EntityMapping with transaction
       const entityMapping = await EntityMapping.create(
         {
           entity_type: "Document",
@@ -1112,8 +1105,7 @@ router.post(
         { transaction },
       );
 
-      // Create SyncLog with transaction
-      const syncLog = await SyncLog.create(
+      await SyncLog.create(
         {
           entity_type: "Document",
           sync_date: new Date(),
