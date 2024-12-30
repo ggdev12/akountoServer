@@ -1016,24 +1016,6 @@ router.delete(
 
 // Document Routes
 
-async function ensureCompanyIntegration(company) {
-  if (!company.Integrations || company.Integrations.length === 0) {
-    await Integration.create({
-      name: "Default Integration",
-      type: "DEFAULT",
-      status: "ACTIVE",
-      CompanyId: company.id,
-      UserId: company.UserId,
-    });
-
-    return await Company.findOne({
-      where: { id: company.id },
-      include: [Integration],
-    });
-  }
-  return company;
-}
-
 const validateUploadRequest = async (req, res, next) => {
   try {
     if (!req.file) {
@@ -1052,20 +1034,46 @@ const validateUploadRequest = async (req, res, next) => {
   }
 };
 
+// Integration helper
+async function ensureCompanyIntegration(company, transaction) {
+  if (!company.Integrations || company.Integrations.length === 0) {
+    await Integration.create(
+      {
+        name: "Default Integration",
+        type: "DEFAULT",
+        status: "ACTIVE",
+        CompanyId: company.id,
+        UserId: company.UserId,
+      },
+      { transaction },
+    );
+
+    return await Company.findOne({
+      where: { id: company.id },
+      include: [Integration],
+      transaction,
+    });
+  }
+  return company;
+}
+
+// Main upload route
 router.post(
   "/companies/:companyId/documents/upload",
   authenticateToken,
-  (req, res, next) => {
-    upload.single("file")(req, res, (err) => {
-      if (err) {
-        console.error("File upload error:", err);
-        return res.status(500).json({
-          error: "File upload failed",
-          details: err.message,
-        });
-      }
+  async (req, res, next) => {
+    console.log("Starting file upload process...");
+    try {
+      await uploadWithTimeout(req, res);
+      console.log("File upload successful");
       next();
-    });
+    } catch (err) {
+      console.error("File upload failed:", err);
+      return res.status(500).json({
+        error: "File upload failed",
+        details: err.message,
+      });
+    }
   },
   validateUploadRequest,
   async (req, res) => {
@@ -1183,7 +1191,6 @@ router.post(
     }
   },
 );
-
 router.post(
   "/companies/:companyId/documents",
   authenticateToken,
