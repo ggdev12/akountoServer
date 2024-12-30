@@ -1057,23 +1057,20 @@ async function ensureCompanyIntegration(company, transaction) {
   return company;
 }
 
-// Main upload route
 router.post(
   "/companies/:companyId/documents/upload",
   authenticateToken,
-  async (req, res, next) => {
-    console.log("Starting file upload process...");
-    try {
-      await uploadWithTimeout(req, res);
-      console.log("File upload successful");
+  (req, res, next) => {
+    upload.single("file")(req, res, (err) => {
+      if (err) {
+        console.error("File upload error:", err);
+        return res.status(500).json({
+          error: "File upload failed",
+          details: err.message,
+        });
+      }
       next();
-    } catch (err) {
-      console.error("File upload failed:", err);
-      return res.status(500).json({
-        error: "File upload failed",
-        details: err.message,
-      });
-    }
+    });
   },
   validateUploadRequest,
   async (req, res) => {

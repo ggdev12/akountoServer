@@ -1,4 +1,4 @@
-// storage.js
+// src/services/storage.js
 const multer = require("multer");
 const AWS = require("aws-sdk");
 const multerS3 = require("multer-s3");
@@ -15,8 +15,8 @@ AWS.config = new AWS.Config({
   s3ForcePathStyle: true,
   signatureVersion: "v4",
   httpOptions: {
-    timeout: 300000, // 5 minutes
-    connectTimeout: 60000, // 1 minute
+    timeout: 300000,
+    connectTimeout: 60000,
     agent: new https.Agent({
       keepAlive: true,
       maxSockets: 25,
@@ -26,8 +26,8 @@ AWS.config = new AWS.Config({
 
 const s3 = new AWS.S3();
 
-// Configure multer with S3
-const uploadMiddleware = multer({
+// Create multer instance with multer-s3
+const upload = multer({
   storage: multerS3({
     s3: s3,
     bucket: Bucket,
@@ -45,28 +45,8 @@ const uploadMiddleware = multer({
   limits: {
     fileSize: 50 * 1024 * 1024, // 50MB
   },
-}).single("file");
+});
 
-// Wrap multer middleware with timeout
-const uploadWithTimeout = (req, res) => {
-  return new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => {
-      reject(new Error("Upload timeout after 5 minutes"));
-    }, 300000); // 5 minutes
-
-    uploadMiddleware(req, res, (err) => {
-      clearTimeout(timeout);
-      if (err) {
-        console.error("Upload error:", err);
-        reject(err);
-      } else {
-        resolve();
-      }
-    });
-  });
-};
-
-// Download file from S3
 const downloadFileAsBuffer = async (fileKeys) => {
   const fileKey = `${fileKeys.baseDir}/${fileKeys.fileName}.${fileKeys.fileExtension}`;
   console.log("Downloading:", fileKey);
@@ -89,7 +69,6 @@ const downloadFileAsBuffer = async (fileKeys) => {
   }
 };
 
-// Upload file to S3
 const uploadFileFromBuffer = async (buffer, fileKey, mimeType) => {
   console.log("Starting upload:", fileKey);
 
@@ -102,7 +81,6 @@ const uploadFileFromBuffer = async (buffer, fileKey, mimeType) => {
       ACL: "public-read",
     });
 
-    // Monitor upload progress
     upload.on("httpUploadProgress", (progress) => {
       console.log("Upload progress:", {
         key: fileKey,
@@ -125,13 +103,11 @@ const uploadFileFromBuffer = async (buffer, fileKey, mimeType) => {
   }
 };
 
-// Generate unique file key
 const generateFileKey = ({ bucketName, baseDir, fileName, fileExtension }) => {
   const uniqueId = uuidv4();
   return `${bucketName}/${baseDir}/${fileName}-${uniqueId}.${fileExtension}`;
 };
 
-// Extract keys from URL
 const extractKeysFromURL = (fileURL) => {
   const url = new URL(fileURL);
   const bucketName = url.pathname.split("/")[1];
@@ -141,20 +117,11 @@ const extractKeysFromURL = (fileURL) => {
   let fileName = fileNameWithExtension.split(".")[0];
   fileName = fileName.replace(/%20/g, "-");
   const fileExtension = fileNameWithExtension.split(".").pop();
-
-  console.log("Extracted file details:", {
-    bucketName,
-    baseDir,
-    fileName,
-    fileExtension,
-  });
-
   return { bucketName, baseDir, fileName, fileExtension };
 };
 
 module.exports = {
-  uploadWithTimeout,
-  uploadMiddleware,
+  upload,
   downloadFileAsBuffer,
   uploadFileFromBuffer,
   generateFileKey,
