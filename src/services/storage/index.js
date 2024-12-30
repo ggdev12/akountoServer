@@ -1,4 +1,3 @@
-// src/services/storage.js
 const multer = require("multer");
 const AWS = require("aws-sdk");
 const multerS3 = require("multer-s3");
@@ -6,6 +5,14 @@ const uuidv4 = require("uuid").v4;
 const https = require("https");
 
 const Bucket = "akountofiles";
+
+// Create a custom HTTPS agent with IPv4 preference
+const agent = new https.Agent({
+  keepAlive: true,
+  maxSockets: 25,
+  timeout: 60000,
+  family: 4, // Force IPv4
+});
 
 // AWS Configuration
 AWS.config = new AWS.Config({
@@ -15,18 +22,15 @@ AWS.config = new AWS.Config({
   s3ForcePathStyle: true,
   signatureVersion: "v4",
   httpOptions: {
-    timeout: 300000,
-    connectTimeout: 60000,
-    agent: new https.Agent({
-      keepAlive: true,
-      maxSockets: 25,
-    }),
+    timeout: 60000,
+    connectTimeout: 30000,
+    agent: agent,
   },
 });
 
 const s3 = new AWS.S3();
 
-// Create multer instance with multer-s3
+// Create multer instance with simplified configuration
 const upload = multer({
   storage: multerS3({
     s3: s3,
@@ -38,6 +42,7 @@ const upload = multer({
     key: function (req, file, cb) {
       const fileExtension = file.originalname.split(".").pop();
       const newFileName = `source/${uuidv4()}.${fileExtension}`;
+      console.log("Generating file key:", newFileName);
       cb(null, newFileName);
     },
     contentType: multerS3.AUTO_CONTENT_TYPE,
@@ -46,7 +51,6 @@ const upload = multer({
     fileSize: 50 * 1024 * 1024, // 50MB
   },
 });
-
 const downloadFileAsBuffer = async (fileKeys) => {
   const fileKey = `${fileKeys.baseDir}/${fileKeys.fileName}.${fileKeys.fileExtension}`;
   console.log("Downloading:", fileKey);
