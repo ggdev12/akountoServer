@@ -8,7 +8,7 @@ const Bucket = "akountofiles";
 AWS.config.update({
   accessKeyId: "WN72022TEDXURTSOTLPJ",
   secretAccessKey: "XNpSWyTXp018YREiXiaZ9T2qJGN5SsZEyBR7vvYg",
-  endpoint: new AWS.Endpoint("del1.vultrobjects.com"),
+  endpoint: new AWS.Endpoint("https://del1.vultrobjects.com"),
   s3ForcePathStyle: true,
   signatureVersion: "v4",
   httpOptions: {
@@ -38,8 +38,7 @@ const upload = multer({
     },
   }),
   limits: {
-    fileSize: 20 * 1024 * 1024,
-    files: 10,
+    fileSize: 50 * 1024 * 1024,
   },
 });
 
