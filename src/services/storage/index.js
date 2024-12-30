@@ -132,7 +132,26 @@ const uploadFileFromBuffer = async (buffer, fileKey, mimeType) => {
   }
 };
 
-// Export the wrapped upload function instead
+const generateFileKey = ({ bucketName, baseDir, fileName, fileExtension }) => {
+  const uniqueId = uuidv4();
+  return `${bucketName}/${baseDir}/${fileName}-${uniqueId}.${fileExtension}`;
+};
+const extractKeysFromURL = (fileURL) => {
+  const url = new URL(fileURL);
+  const bucketName = url.pathname.split("/")[1];
+  const pathSegments = url.pathname.split("/");
+  const baseDir = pathSegments[2];
+  const fileNameWithExtension = pathSegments.slice(-1)[0];
+  let fileName = fileNameWithExtension.split(".")[0];
+  console.log("fileName", fileName);
+  fileName = fileName.replace(/%20/g, "-");
+  const fileExtension = fileNameWithExtension.split(".").pop();
+  console.log(
+    `Extracted details - Bucket: ${bucketName}, Base Dir: ${baseDir}, Filename: ${fileName}, Extension: ${fileExtension}`,
+  );
+  return { bucketName, baseDir, fileName, fileExtension };
+};
+
 module.exports = {
   upload: uploadWithTimeout,
   downloadFileAsBuffer,
