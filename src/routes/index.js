@@ -361,7 +361,7 @@ router.get(
       });
 
       if (!integration) {
-        return res.status(404).json({
+        return res.status(200).json({
           hasActiveIntegration: false,
           message: "No QuickBooks integration found",
         });
