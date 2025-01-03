@@ -566,7 +566,7 @@ const SubscriptionHistory = sequelize.define("SubscriptionHistory", {
     primaryKey: true,
   },
   action: {
-    type: DataTypes.ENUM("subscribe", "unsubscribe", "upgrade", "downgrade"),
+    type: DataTypes.ENUM("subscribe", "unsubscribe", "upgrade", "downgrade", "freeTrial"),
     allowNull: false,
   },
   date: {
