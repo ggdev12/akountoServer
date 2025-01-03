@@ -7,8 +7,7 @@ module.exports = {
     password: process.env.DB_PASSWORD,
     database: process.env.DB_NAME,
     host: process.env.DB_HOST,
-    dialect: "sqlite",
-    storage: "./database.sqlite", // SQLite file path added
+    dialect: "postgres", // Changed from sqlite to postgres
     operatorsAliases: false,
     logging: false,
   },
@@ -17,7 +16,7 @@ module.exports = {
     password: process.env.DB_PASSWORD,
     database: process.env.DB_NAME,
     host: process.env.DB_HOST,
-    dialect: "sqlite",
+    dialect: "postgres", // Changed from sqlite to postgres
     operatorsAliases: false,
     logging: false,
   },
@@ -26,7 +25,7 @@ module.exports = {
     password: process.env.DB_PASSWORD,
     database: process.env.DB_NAME,
     host: process.env.DB_HOST,
-    dialect: "sqlite",
+    dialect: "postgres", // Changed from sqlite to postgres
     operatorsAliases: false,
     logging: false,
   },
