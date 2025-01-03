@@ -116,7 +116,7 @@ const Integration = sequelize.define("Integration", {
     primaryKey: true,
   },
   service_type: {
-    type: DataTypes.ENUM("QuickBooks", "Xero", "Zoho"),
+    type: DataTypes.ENUM("QuickBooks", "Xero", "Zoho", "Quickbooks"),
     allowNull: false,
     defaultValue: "QuickBooks",
   },
