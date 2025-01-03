@@ -362,6 +362,7 @@ router.get(
 
       if (!integration) {
         return res.status(200).json({
+          integrationStatus: "Disconnected",
           hasActiveIntegration: false,
           message: "No QuickBooks integration found",
         });
