@@ -261,7 +261,7 @@ router.get("/quickbooks/callback", async (req, res) => {
 
     res
       .status(500)
-      .redirect(`${appBaseURL}/settings/integrations?error=auth_failed`);
+      .redirect(`${appBaseURL}/account/integrations?error=auth_failed`);
   }
 });
 
