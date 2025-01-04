@@ -207,6 +207,7 @@ const Document = sequelize.define("Document", {
       "Failed",
       "Processing",
       "Error",
+      "ProcessingError"
     ),
     allowNull: false,
     defaultValue: "Inbox",
