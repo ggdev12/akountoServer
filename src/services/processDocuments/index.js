@@ -137,37 +137,59 @@ const processDocument = async (document) => {
   console.log(" - Processing document:", document.file_path);
 
   try {
+    // Find document
     const documentData = await Document.findByPk(document.id);
     if (!documentData) {
       console.error(`Document not found: ${document.id}`);
       return { status: 404, error: "Document not found" };
     }
-    await documentData.update({ status: "Extraction" });
 
+    // Update status to Extraction
+    await documentData.update({ status: "Processing" });
+
+    // Process files
     let processedFiles = await processFile(document.file_path);
     await documentData.update({ processed_image_file_paths: processedFiles });
 
+    // Process document with AI service
     let processed_data = await aiService.processDocument(
       processedFiles,
-      invoiceJsonSchema,
+      invoiceJsonSchema
     );
 
     console.log(
       "Processed JSON:",
-      JSON.stringify(processed_data.processed_json, null, 2),
+      JSON.stringify(processed_data.processed_json, null, 2)
     );
 
+    // Create invoice
     const invoice = await createInvoice(
       processed_data.processed_json,
-      document,
+      document
     );
 
-    // Transform the data for QuickBooks
+    // Transform data for QuickBooks
     const transformedInvoiceData = transformInvoiceForQuickBooks(
-      processed_data.processed_json,
+      processed_data.processed_json
     );
 
-    // Add CustomerRef after transformation
+    // Log transformed data
+    console.log(
+      "Transformed Invoice Data:", 
+      JSON.stringify(transformedInvoiceData, null, 2)
+    );
+
+    // Validate transformed data
+    if (!transformedInvoiceData || !transformedInvoiceData.Line || transformedInvoiceData.Line.length === 0) {
+      const error = "Invalid transformed invoice data: Missing required fields";
+      await documentData.update({
+        status: "Failed",
+        error_message: error
+      });
+      return { status: 400, error };
+    }
+
+    // Find customer mapping
     const entity = await EntityMapping.findOne({
       where: {
         CompanyId: document.CompanyId,
@@ -177,46 +199,70 @@ const processDocument = async (document) => {
     });
 
     if (!entity) {
-      console.error("Customer mapping not found for invoice:", invoice.CustomerId);
+      const error = "Customer mapping not found for invoice: " + invoice.CustomerId;
+      console.error(error);
+      await documentData.update({
+        status: "Failed",
+        error_message: error
+      });
       return { status: 404, error: "Customer mapping not found" };
     }
 
+    // Add CustomerRef
     transformedInvoiceData.CustomerRef = {
       value: entity.external_id,
     };
 
-    // Validate the transformed data
+    // Validate transformed data
     try {
       validateInvoiceData(transformedInvoiceData);
     } catch (validationError) {
       console.error("Validation error:", validationError);
       await documentData.update({
-        status: "ValidationError",
+        status: "Failed",
         error_message: validationError.message,
       });
       return { status: 400, error: validationError.message };
     }
 
+    // Find integration
     const integration = await Integration.findOne({
       where: {
         CompanyId: document.CompanyId,
-        status: "Connected", // Add this condition
+        status: "Connected",
       },
     });
+
     if (!integration) {
+      const error = "No active QuickBooks integration found. Please connect to QuickBooks first.";
       console.error("No active QuickBooks integration found for CompanyId:", document.CompanyId);
-      return { status: 400, error: "No active QuickBooks integration found. Please connect to QuickBooks first." };
+      await documentData.update({
+        status: "Failed",
+        error_message: error
+      });
+      return { status: 400, error };
     }
 
+    // Initialize QuickBooks API client
+    console.log("Initializing QuickBooks API client with:", {
+      integrationId: integration.id,
+      hasCredentials: !!integration.credentials,
+      credentialKeys: Object.keys(integration.credentials || {})
+    });
+
     const quickbooksApi = new quickbooksApiClient(
-      integration.credentials,
-      integration.id,
+      {
+        ...integration.credentials,
+        environment: process.env.QB_ENVIRONMENT || 'sandbox',
+        minorversion: process.env.QB_API_MINOR_VERSION || '65'
+      },
+      integration.id
     );
 
     try {
-      const response = await quickbooksApi.invoices.create(
-        transformedInvoiceData,
-      );
+      console.log("Attempting to create QuickBooks invoice...");
+      const response = await quickbooksApi.invoices.create(transformedInvoiceData);
+      console.log("QuickBooks invoice creation successful:", JSON.stringify(response.body, null, 2));
 
       await documentData.update({
         processed_data: processed_data,
@@ -231,30 +277,69 @@ const processDocument = async (document) => {
         external_id: response.body.Invoice.Id,
         UserId: document.UserId,
       });
+
+      return { status: 200, data: response.body };
+
     } catch (error) {
-      console.error("QuickBooks API Error:", {
-        message: error.message,
-        fault: error.fault,
-        intuit_tid: error.intuit_tid,
-      });
+      console.error("Full QuickBooks API Error:", JSON.stringify(error, null, 2));
+      
+      if (error && typeof error === 'object') {
+        const errorDetails = {
+          message: error.message || error.response?.body?.Fault?.Error?.[0]?.Message,
+          fault: error.fault || error.response?.body?.Fault,
+          intuit_tid: error.intuit_tid || error.response?.headers?.['intuit_tid'],
+          statusCode: error.statusCode || error.response?.statusCode,
+          detail: error.detail || error.response?.body?.Fault?.Error?.[0]?.Detail
+        };
+        
+        console.error("Structured QuickBooks Error:", errorDetails);
 
-      if (error.fault && error.fault.type === "ValidationFault") {
+        if (errorDetails.fault?.type === "ValidationFault" || 
+            error.response?.body?.Fault?.type === "ValidationFault") {
+          await documentData.update({
+            status: "Failed",
+            error_message: errorDetails.detail || errorDetails.message || "Validation Error"
+          });
+          return { 
+            status: 400, 
+            error: `QuickBooks Validation Error: ${errorDetails.detail || errorDetails.message}` 
+          };
+        }
+
         await documentData.update({
-          status: "ValidationError",
-          error_message: error.fault.Error[0].Detail,
+          status: "Failed",
+          error_message: errorDetails.message || "Unknown QuickBooks Error"
         });
-        return { status: 400, error: `QuickBooks Validation Error: ${error.fault.Error[0].Detail}` };
+        return { 
+          status: 500, 
+          error: errorDetails.message || "Unknown QuickBooks Error" 
+        };
+      } else {
+        console.error("Unexpected error type:", typeof error, error);
+        await documentData.update({
+          status: "Failed",
+          error_message: "Unexpected error type received"
+        });
+        return { 
+          status: 500, 
+          error: "Internal Server Error" 
+        };
       }
-
-      await documentData.update({
-        status: "Error",
-        error_message: error.message,
-      });
-      return { status: 500, error: error.message };
     }
   } catch (error) {
     console.error("Error processing document:", error);
-    return { status: 500, error: error.message };
+    
+    if (documentData) {
+      await documentData.update({
+        status: "Failed",
+        error_message: error.message || "Unknown error occurred"
+      });
+    }
+    
+    return { 
+      status: 500, 
+      error: error.message || "Internal Server Error" 
+    };
   }
 };
 
