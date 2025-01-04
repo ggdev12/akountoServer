@@ -5,8 +5,8 @@ const {
 
 module.exports.invoiceJsonSchema = {
   InvoiceNumber: { type: "string" },
-  Date: { type: "string", description: "The date in 'YYYY-MM-DD' format" },
-  DueDate: { type: "string", description: "The date in 'YYYY-MM-DD' format" },
+  Date: { type: "date", description: "The date in 'YYYY-MM-DD' format" },
+  DueDate: { type: "date", description: "The date in 'YYYY-MM-DD' format" },
   Currency: {
     type: "string",
     description: "The currency should be in SO 4217 format",
@@ -80,7 +80,7 @@ module.exports.invoiceJsonSchema = {
 
 module.exports.purchaseJsonSchema = {
   TransactionDate: {
-    type: "string",
+    type: "date",
     description: "The date in 'YYYY-MM-DD' format",
   },
   TotalAmount: { type: "number" },
