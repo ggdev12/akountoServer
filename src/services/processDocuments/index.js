@@ -138,6 +138,10 @@ const processDocument = async (document) => {
 
   try {
     const documentData = await Document.findByPk(document.id);
+    if (!documentData) {
+      console.error(`Document not found: ${document.id}`);
+      return { status: 404, error: "Document not found" };
+    }
     await documentData.update({ status: "Extraction" });
 
     let processedFiles = await processFile(document.file_path);
@@ -173,7 +177,8 @@ const processDocument = async (document) => {
     });
 
     if (!entity) {
-      throw new Error("Customer mapping not found");
+      console.error("Customer mapping not found for invoice:", invoice.CustomerId);
+      return { status: 404, error: "Customer mapping not found" };
     }
 
     transformedInvoiceData.CustomerRef = {
@@ -189,7 +194,7 @@ const processDocument = async (document) => {
         status: "ValidationError",
         error_message: validationError.message,
       });
-      throw validationError;
+      return { status: 400, error: validationError.message };
     }
 
     const integration = await Integration.findOne({
@@ -199,9 +204,8 @@ const processDocument = async (document) => {
       },
     });
     if (!integration) {
-      throw new Error(
-        "No active QuickBooks integration found. Please connect to QuickBooks first.",
-      );
+      console.error("No active QuickBooks integration found for CompanyId:", document.CompanyId);
+      return { status: 400, error: "No active QuickBooks integration found. Please connect to QuickBooks first." };
     }
 
     const quickbooksApi = new quickbooksApiClient(
@@ -239,26 +243,28 @@ const processDocument = async (document) => {
           status: "ValidationError",
           error_message: error.fault.Error[0].Detail,
         });
-        throw new Error(
-          `QuickBooks Validation Error: ${error.fault.Error[0].Detail}`,
-        );
+        return { status: 400, error: `QuickBooks Validation Error: ${error.fault.Error[0].Detail}` };
       }
 
       await documentData.update({
         status: "Error",
         error_message: error.message,
       });
-      throw error;
+      return { status: 500, error: error.message };
     }
   } catch (error) {
     console.error("Error processing document:", error);
-    throw error;
+    return { status: 500, error: error.message };
   }
 };
 
 // process receipt document
 const processReceiptDocument = async (document) => {
   const documentData = await Document.findByPk(document.id);
+  if (!documentData) {
+    console.error(`Document not found: ${document.id}`);
+    return { status: 404, error: "Document not found" };
+  }
   await documentData.update({ status: "Extraction" });
 
   console.log("extracting...");
@@ -287,9 +293,8 @@ const processReceiptDocument = async (document) => {
     },
   });
   if (!integration) {
-    throw new Error(
-      "No active QuickBooks integration found. Please connect to QuickBooks first.",
-    );
+    console.error("No active QuickBooks integration found for CompanyId:", document.CompanyId);
+    return { status: 400, error: "No active QuickBooks integration found. Please connect to QuickBooks first." };
   }
   const quickbooksApi = new quickbooksApiClient(
     integration.credentials,
@@ -370,9 +375,8 @@ const createInvoice = async (invoiceJson, document) => {
     },
   });
   if (!integration) {
-    throw new Error(
-      "No active QuickBooks integration found. Please connect to QuickBooks first.",
-    );
+    console.error("No active QuickBooks integration found for CompanyId:", document.CompanyId);
+    return { status: 400, error: "No active QuickBooks integration found. Please connect to QuickBooks first." };
   }
   const quickbooksApi = new quickbooksApiClient(
     integration.credentials,
@@ -452,7 +456,7 @@ const createInvoice = async (invoiceJson, document) => {
       }
     } catch (error) {
       console.error("Error creating or finding customer:", error);
-      throw new Error("Failed to create or find customer in QuickBooks");
+      return { status: 500, error: "Failed to create or find customer in QuickBooks" };
     }
   }
   console.log("entity - document:");
@@ -531,9 +535,8 @@ async function createReceipt(receiptJson, document) {
       },
     });
     if (!integration) {
-      throw new Error(
-        "No active QuickBooks integration found. Please connect to QuickBooks first.",
-      );
+      console.error("No active QuickBooks integration found for CompanyId:", document.CompanyId);
+      return { status: 400, error: "No active QuickBooks integration found. Please connect to QuickBooks first." };
     }
     const quickbooksApi = new quickbooksApiClient(
       integration.credentials,
@@ -597,7 +600,6 @@ async function createReceipt(receiptJson, document) {
     for (const item of PurchaseLines) {
       await PurchaseLineItem.create({
         amount: item.Amount,
-        // project_ref: item.ProjectRef,
         account_ref: 92,
         billable_status: "NotBillable", // passing NotBillable for now
         // tax_code_ref: item.TaxCodeRef,
@@ -610,13 +612,17 @@ async function createReceipt(receiptJson, document) {
     return receipt;
   } catch (error) {
     console.error("Error creating receipt:", error.message);
-    throw error;
+    return { status: 500, error: error.message };
   }
 }
 
 const processInvoice = async (invoice) => {
   try {
     const invoiceData = await Invoice.findByPk(invoice.id);
+    if (!invoiceData) {
+      console.error(`Invoice not found: ${invoice.id}`);
+      return { status: 404, error: "Invoice not found" };
+    }
 
     console.log("Starting to process the file for invoice:", invoiceData.id);
 
@@ -630,7 +636,7 @@ const processInvoice = async (invoice) => {
     return invoiceData;
   } catch (error) {
     console.error("Error processing invoice:", error.message);
-    throw error;
+    return { status: 500, error: error.message };
   }
 };
 
