@@ -145,7 +145,7 @@ const processDocument = async (document) => {
       return { status: 404, error: "Document not found" };
     }
 
-    // Update status to Processing
+    // Update status to Processing (valid enum value from model)
     await documentData.update({ status: "Processing" });
 
     try {
@@ -188,12 +188,11 @@ const processDocument = async (document) => {
 
       // Validate transformed data
       if (!transformedInvoiceData || !transformedInvoiceData.Line || transformedInvoiceData.Line.length === 0) {
-        const error = "Invalid transformed invoice data: Missing required fields";
         await documentData.update({
-          status: "Failed",
-          error_message: error
+          status: "MissingData",
+          error_message: "Invalid transformed invoice data: Missing required fields"
         });
-        return { status: 400, error };
+        return { status: 400, error: "Invalid transformed invoice data: Missing required fields" };
       }
 
       // Find customer mapping
@@ -209,7 +208,7 @@ const processDocument = async (document) => {
         const error = `Customer mapping not found for invoice: ${invoice.CustomerId}`;
         console.error(error);
         await documentData.update({
-          status: "Failed",
+          status: "MissingData",
           error_message: error
         });
         return { status: 404, error: "Customer mapping not found" };
@@ -226,7 +225,7 @@ const processDocument = async (document) => {
       } catch (validationError) {
         console.error("Validation error:", validationError);
         await documentData.update({
-          status: "Failed",
+          status: "MissingData",
           error_message: validationError.message,
         });
         return { status: 400, error: validationError.message };
@@ -244,7 +243,7 @@ const processDocument = async (document) => {
         const error = "No active QuickBooks integration found. Please connect to QuickBooks first.";
         console.error("No active QuickBooks integration found for CompanyId:", document.CompanyId);
         await documentData.update({
-          status: "Failed",
+          status: "ProcessingError",
           error_message: error
         });
         return { status: 400, error };
@@ -311,7 +310,7 @@ const processDocument = async (document) => {
           if (errorDetails.fault?.type === "ValidationFault" || 
               error.response?.body?.Fault?.type === "ValidationFault") {
             await documentData.update({
-              status: "Failed",
+              status: "MissingData",
               error_message: errorDetails.detail || errorDetails.message || "Validation Error"
             });
             return { 
@@ -320,8 +319,27 @@ const processDocument = async (document) => {
             };
           }
 
+          // Handle authentication errors
+          if (errorDetails.statusCode === 401 || 
+              errorDetails.fault?.type === "AUTHENTICATION") {
+            await documentData.update({
+              status: "ProcessingError",
+              error_message: "QuickBooks authentication failed. Please reconnect your account."
+            });
+            
+            // Update integration status
+            await integration.update({
+              status: "Disconnected"
+            });
+
+            return { 
+              status: 401, 
+              error: "QuickBooks authentication failed. Please reconnect your account." 
+            };
+          }
+
           await documentData.update({
-            status: "Failed",
+            status: "ProcessingError",
             error_message: errorDetails.message || "Unknown QuickBooks Error"
           });
           return { 
@@ -331,7 +349,7 @@ const processDocument = async (document) => {
         } else {
           console.error("Unexpected error type:", typeof error, error);
           await documentData.update({
-            status: "Failed",
+            status: "ProcessingError",
             error_message: "Unexpected error type received"
           });
           return { 
@@ -343,7 +361,7 @@ const processDocument = async (document) => {
     } catch (processError) {
       console.error("Error in document processing:", processError);
       await documentData.update({
-        status: "Failed",
+        status: "ProcessingError",
         error_message: `Processing error: ${processError.message}`
       });
       throw processError;
@@ -353,7 +371,7 @@ const processDocument = async (document) => {
     
     if (documentData) {
       await documentData.update({
-        status: "Failed",
+        status: "ProcessingError",
         error_message: error.message || "Unknown error occurred"
       });
     }
