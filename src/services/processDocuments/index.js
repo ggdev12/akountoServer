@@ -149,7 +149,7 @@ const processDocument = async (document) => {
     await documentData.update({ status: "Processing" });
 
     try {
-      // Process files with better error handling
+      // Process files
       let processedFiles = await processFile(document.file_path);
       await documentData.update({ processed_image_file_paths: processedFiles });
 
@@ -186,23 +186,171 @@ const processDocument = async (document) => {
         JSON.stringify(transformedInvoiceData, null, 2)
       );
 
-      // Rest of your existing code...
-      
+      // Validate transformed data
+      if (!transformedInvoiceData || !transformedInvoiceData.Line || transformedInvoiceData.Line.length === 0) {
+        const error = "Invalid transformed invoice data: Missing required fields";
+        await documentData.update({
+          status: "Failed",
+          error_message: error
+        });
+        return { status: 400, error };
+      }
+
+      // Find customer mapping
+      const entity = await EntityMapping.findOne({
+        where: {
+          CompanyId: document.CompanyId,
+          entity_type: "Customer",
+          local_id: invoice.CustomerId,
+        },
+      });
+
+      if (!entity) {
+        const error = `Customer mapping not found for invoice: ${invoice.CustomerId}`;
+        console.error(error);
+        await documentData.update({
+          status: "Failed",
+          error_message: error
+        });
+        return { status: 404, error: "Customer mapping not found" };
+      }
+
+      // Add CustomerRef
+      transformedInvoiceData.CustomerRef = {
+        value: entity.external_id,
+      };
+
+      // Validate invoice data
+      try {
+        validateInvoiceData(transformedInvoiceData);
+      } catch (validationError) {
+        console.error("Validation error:", validationError);
+        await documentData.update({
+          status: "Failed",
+          error_message: validationError.message,
+        });
+        return { status: 400, error: validationError.message };
+      }
+
+      // Find integration
+      const integration = await Integration.findOne({
+        where: {
+          CompanyId: document.CompanyId,
+          status: "Connected",
+        },
+      });
+
+      if (!integration) {
+        const error = "No active QuickBooks integration found. Please connect to QuickBooks first.";
+        console.error("No active QuickBooks integration found for CompanyId:", document.CompanyId);
+        await documentData.update({
+          status: "Failed",
+          error_message: error
+        });
+        return { status: 400, error };
+      }
+
+      // Initialize QuickBooks API client
+      console.log("Initializing QuickBooks API client with:", {
+        integrationId: integration.id,
+        hasCredentials: !!integration.credentials,
+        credentialKeys: Object.keys(integration.credentials || {})
+      });
+
+      const quickbooksApi = new quickbooksApiClient(
+        {
+          ...integration.credentials,
+          environment: process.env.QB_ENVIRONMENT || 'sandbox',
+          minorversion: process.env.QB_API_MINOR_VERSION || '65'
+        },
+        integration.id
+      );
+
+      try {
+        console.log("Attempting to create QuickBooks invoice with data:", 
+          JSON.stringify(transformedInvoiceData, null, 2)
+        );
+        
+        const response = await quickbooksApi.invoices.create(transformedInvoiceData);
+        console.log("QuickBooks invoice creation successful:", JSON.stringify(response.body, null, 2));
+
+        await documentData.update({
+          processed_data: processed_data,
+          status: "Processed",
+        });
+
+        await EntityMapping.create({
+          CompanyId: document.CompanyId,
+          IntegrationId: integration.id,
+          entity_type: "Invoice",
+          local_id: invoice.id,
+          external_id: response.body.Invoice.Id,
+          UserId: document.UserId,
+        });
+
+        return { 
+          status: 200, 
+          data: response.body,
+          message: `Invoice created successfully with number ${transformedInvoiceData.DocNumber}`
+        };
+
+      } catch (error) {
+        console.error("Full QuickBooks API Error:", JSON.stringify(error, null, 2));
+        
+        if (error && typeof error === 'object') {
+          const errorDetails = {
+            message: error.message || error.response?.body?.Fault?.Error?.[0]?.Message,
+            fault: error.fault || error.response?.body?.Fault,
+            intuit_tid: error.intuit_tid || error.response?.headers?.['intuit_tid'],
+            statusCode: error.statusCode || error.response?.statusCode,
+            detail: error.detail || error.response?.body?.Fault?.Error?.[0]?.Detail
+          };
+          
+          console.error("Structured QuickBooks Error:", errorDetails);
+
+          if (errorDetails.fault?.type === "ValidationFault" || 
+              error.response?.body?.Fault?.type === "ValidationFault") {
+            await documentData.update({
+              status: "Failed",
+              error_message: errorDetails.detail || errorDetails.message || "Validation Error"
+            });
+            return { 
+              status: 400, 
+              error: `QuickBooks Validation Error: ${errorDetails.detail || errorDetails.message}` 
+            };
+          }
+
+          await documentData.update({
+            status: "Failed",
+            error_message: errorDetails.message || "Unknown QuickBooks Error"
+          });
+          return { 
+            status: 500, 
+            error: errorDetails.message || "Unknown QuickBooks Error" 
+          };
+        } else {
+          console.error("Unexpected error type:", typeof error, error);
+          await documentData.update({
+            status: "Failed",
+            error_message: "Unexpected error type received"
+          });
+          return { 
+            status: 500, 
+            error: "Internal Server Error" 
+          };
+        }
+      }
     } catch (processError) {
       console.error("Error in document processing:", processError);
       await documentData.update({
         status: "Failed",
         error_message: `Processing error: ${processError.message}`
       });
-      throw processError; // Re-throw to be caught by outer try-catch
+      throw processError;
     }
-
-    // Rest of your existing code...
-
   } catch (error) {
     console.error("Error processing document:", error);
     
-    // Safe error handling with documentData check
     if (documentData) {
       await documentData.update({
         status: "Failed",
@@ -217,7 +365,6 @@ const processDocument = async (document) => {
   }
 };
 
-// Updated PDF to Image conversion function with better error handling
 const convertPDFtoImages = async (file) => {
   try {
     let base64Images = [];
@@ -239,10 +386,25 @@ const convertPDFtoImages = async (file) => {
       const conversionResults = await convert.bulk(pagesToConvert, {
         responseType: "base64",
       });
-      base64Images = conversionResults.map((result) => result.base64);
+
+      if (!conversionResults || conversionResults.length === 0) {
+        throw new Error("PDF conversion produced no results");
+      }
+
+      base64Images = conversionResults.map((result) => {
+        if (!result || !result.base64) {
+          throw new Error("Invalid conversion result format");
+        }
+        return result.base64;
+      });
+
     } catch (conversionError) {
       console.error("Error in PDF conversion:", conversionError);
       throw new Error(`PDF conversion failed: ${conversionError.message}`);
+    }
+
+    if (base64Images.length === 0) {
+      throw new Error("No images were generated from the PDF");
     }
 
     return base64Images;
@@ -252,15 +414,25 @@ const convertPDFtoImages = async (file) => {
   }
 };
 
-// Updated processFile function with better error handling
 const processFile = async (fileURL) => {
   try {
     console.log("Downloading file from URL:", fileURL);
 
-    const fileKeys = extractKeysFromURL(fileURL);
-    let file = await downloadFileAsBuffer(fileKeys);
-    let processedFiles = [];
+    if (!fileURL) {
+      throw new Error("File URL is required");
+    }
 
+    const fileKeys = extractKeysFromURL(fileURL);
+    if (!fileKeys) {
+      throw new Error("Invalid file URL format");
+    }
+
+    let file = await downloadFileAsBuffer(fileKeys);
+    if (!file) {
+      throw new Error("File download failed");
+    }
+
+    let processedFiles = [];
     const isPDF = fileKeys.fileExtension.toLowerCase() === "pdf";
     let processedFileKey = `processed/${fileKeys.fileName}${fileKeys.fileExtension}`;
 
@@ -268,15 +440,33 @@ const processFile = async (fileURL) => {
       console.log(" - Converting PDF to images");
       try {
         const base64Images = await convertPDFtoImages(file);
+        if (!base64Images || base64Images.length === 0) {
+          throw new Error("PDF conversion produced no images");
+        }
+
         let pageNumber = 1;
         for (const image of base64Images) {
+          if (!image) {
+            console.warn(`Skipping empty image for page ${pageNumber}`);
+            continue;
+          }
+
           processedFileKey = `processed/${fileKeys.fileName}_page_${pageNumber}.jpeg`;
-          const imageURL = await uploadFileFromBuffer(
-            Buffer.from(image, "base64"),
-            processedFileKey,
-            "image/jpeg",
-          );
-          processedFiles.push(imageURL);
+          try {
+            const imageBuffer = Buffer.from(image, "base64");
+            const imageURL = await uploadFileFromBuffer(
+              imageBuffer,
+              processedFileKey,
+              "image/jpeg"
+            );
+            if (!imageURL) {
+              throw new Error(`Failed to upload image for page ${pageNumber}`);
+            }
+            processedFiles.push(imageURL);
+          } catch (uploadError) {
+            console.error(`Error uploading page ${pageNumber}:`, uploadError);
+            throw new Error(`Failed to upload page ${pageNumber}: ${uploadError.message}`);
+          }
           pageNumber++;
         }
         console.log(" - Converted PDF to images");
@@ -285,12 +475,24 @@ const processFile = async (fileURL) => {
         throw new Error(`PDF processing failed: ${pdfError.message}`);
       }
     } else {
-      const processedFileURL = await uploadFileFromBuffer(
-        file,
-        processedFileKey,
-        "image/jpeg",
-      );
-      processedFiles.push(processedFileURL);
+      try {
+        const processedFileURL = await uploadFileFromBuffer(
+          file,
+          processedFileKey,
+          "image/jpeg"
+        );
+        if (!processedFileURL) {
+          throw new Error("Failed to upload processed file");
+        }
+        processedFiles.push(processedFileURL);
+      } catch (uploadError) {
+        console.error("Error uploading processed file:", uploadError);
+        throw new Error(`File upload failed: ${uploadError.message}`);
+      }
+    }
+
+    if (processedFiles.length === 0) {
+      throw new Error("No files were processed successfully");
     }
 
     console.log("Processed files uploaded:", processedFiles);
