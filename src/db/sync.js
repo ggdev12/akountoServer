@@ -23,7 +23,7 @@ const bcrypt = require("bcrypt");
 const syncModels = async () => {
   try {
     console.log("Starting model synchronization...");
-    await sequelize.sync({ alter: true, force: false });
+    await sequelize.sync({ alter: false, force: false });
     console.log("All models synchronized successfully.");
   } catch (error) {
     console.error("Error synchronizing models:", error);

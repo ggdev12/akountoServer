@@ -2432,7 +2432,7 @@ router.get("/dashboard-data", authenticateToken, async (req, res) => {
     let recentActivities = [];
     const recentDocuments = await Document.findAll({
       where: {
-        userId: req.userId,
+        UserId: req.userId,
       },
       order: [["createdAt", "DESC"]],
       limit: 1,

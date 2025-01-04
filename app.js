@@ -61,9 +61,9 @@ app.use((err, req, res, next) => {
 async function initializeServer() {
   try {
     await Promise.race([
-      sequelize.sync({ alter: true }),
+      sequelize.sync({ alter: false }),
       new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("Database sync timeout")), 30000),
+        setTimeout(() => reject(new Error("Database sync timeout")), 300000),
       ),
     ]);
 
