@@ -633,7 +633,7 @@ const createInvoice = async (invoiceJson, document) => {
 
   const {
     InvoiceNumber,
-    Date,
+    Date: invoiceDate,
     DueDate,
     Currency,
     PaymentTerms,
@@ -645,6 +645,10 @@ const createInvoice = async (invoiceJson, document) => {
     Notes,
     DiscountTotal,
   } = invoiceJson;
+
+  // Validate and parse dates without defaults
+  const parsedDate = invoiceDate ? new Date(invoiceDate) : null;
+  const parsedDueDate = DueDate ? new Date(DueDate) : null;
 
   const [customer, created] = await Customer.findOrCreate({
     where: { name: CustomerDetails.CompanyName, CompanyId: document.CompanyId },
@@ -752,8 +756,8 @@ const createInvoice = async (invoiceJson, document) => {
 
   const invoice = await Invoice.create({
     invoice_number: InvoiceNumber,
-    date: Date,
-    due_date: DueDate,
+    date: parsedDate,
+    due_date: parsedDueDate,
     currency: Currency,
     payment_terms: PaymentTerms,
     discount_total: DiscountTotal,
