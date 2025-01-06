@@ -285,7 +285,7 @@ const Invoice = sequelize.define("Invoice", {
     allowNull: true,
   },
   notes: {
-    type: DataTypes.STRING,
+    type: DataTypes.TEXT,
   },
   created_by: {
     type: DataTypes.STRING,
