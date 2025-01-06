@@ -86,7 +86,18 @@ const transformInvoiceForQuickBooks = (processedJson) => {
   const lines = processedJson.Items.map((item) => {
     const quantity = item.Quantity || 1;
     const unitPrice = item.UnitPrice || item.TotalAmount || 0;
-    const amount = item.TotalAmount || quantity * unitPrice;
+    // Calculate the amount correctly: quantity * unitPrice
+    const amount = quantity * unitPrice;
+
+    // Round to 2 decimal places to avoid floating point issues
+    const roundedAmount = Math.round(amount * 100) / 100;
+
+    console.log('Line item calculation:', {
+      quantity,
+      unitPrice,
+      calculatedAmount: amount,
+      roundedAmount
+    });
 
     return {
       Description: item.Description || "",
@@ -98,11 +109,24 @@ const transformInvoiceForQuickBooks = (processedJson) => {
         Qty: quantity,
         UnitPrice: unitPrice,
       },
-      Amount: amount,
+      Amount: roundedAmount,
     };
   });
 
-  return {
+  // Generate a compact unique DocNumber
+  const baseNumber = (processedJson.InvoiceNumber || "").slice(0, 8);
+  const timestamp = Date.now().toString(36).slice(-8);
+  let docNumber = `${baseNumber}-${timestamp}`;
+
+  // Debug logging
+  console.log(`Generated DocNumber before validation: ${docNumber} (length: ${docNumber.length})`);
+
+  // Ensure max length of 21
+  if (docNumber.length > 21) {
+    docNumber = docNumber.slice(0, 21);
+  }
+
+  const transformedData = {
     Line: [
       ...lines,
       {
@@ -119,7 +143,7 @@ const transformInvoiceForQuickBooks = (processedJson) => {
     CurrencyRef: {
       value: processedJson.Currency || "USD",
     },
-    DocNumber: (processedJson.InvoiceNumber || "").slice(-20),
+    DocNumber: docNumber,
     BillAddr: processedJson.BillingAddress || {},
     ShipAddr: processedJson.ShippingAddress || {},
     SalesTermRef: {
@@ -131,6 +155,8 @@ const transformInvoiceForQuickBooks = (processedJson) => {
       value: processedJson.Notes || "",
     },
   };
+
+  return transformedData;
 };
 
 const processDocument = async (document) => {
@@ -178,7 +204,7 @@ const processDocument = async (document) => {
       // Add timestamp to make invoice number unique
       const timestamp = new Date().getTime();
       const originalDocNumber = transformedInvoiceData.DocNumber;
-      transformedInvoiceData.DocNumber = `${originalDocNumber}-${timestamp}`;
+      transformedInvoiceData.DocNumber = `${originalDocNumber}`;
 
       // Log transformed data
       console.log(

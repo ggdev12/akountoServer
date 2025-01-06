@@ -1218,7 +1218,7 @@ router.get(
   async (req, res) => {
     try {
       const company = await Company.findOne({
-        where: { id: req.params.companyId, UserId: req.userId },
+        where: { id: req.params.companyId },
       });
       if (!company) {
         throw new Error("Company not found");
