@@ -2664,14 +2664,14 @@ router.get("/chat-data/:chatId/", authenticateToken, async (req, res) => {
     res.status(500).json({ success: false, meesage: "Internal server error" });
   }
 });
-router.get(
+router.post(
   "/delete-quickbooks-integration/:companyId",
   authenticateToken,
   async (req, res) => {
     const UserId = req.userId;
     const companyId = req.params.companyId;
     if (!UserId || !companyId) {
-      console.log("Missing tokeb or companyId");
+      console.log("Missing token or companyId");
       return res.status(400).json({ message: "Missing token or companyId." });
     }
     const findUser = await User.findOne({
@@ -2684,13 +2684,13 @@ router.get(
       return res.status(401).json({ message: "User not found." });
     }
 
-    const deleteInegratins = await Integration.destroy({
+    const deleteInegrations = await Integration.destroy({
       where: {
         CompanyId: companyId,
         UserId: UserId,
       },
     });
-    if (!deleteInegratins) {
+    if (!deleteInegrations) {
       console.log(
         "Failed to delete the integrations of the user and the comopany with quickbooks.",
       );
