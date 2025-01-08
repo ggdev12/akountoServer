@@ -2717,7 +2717,7 @@ router.post(
         .status(400)
         .json({ message: "Failed to disconnect the quickbooks integrations." });
     }
-    return res.redirect(`https://app.kounto.ai/quickbooks-disconnected?realmId=${realmId}`);
+    return res.redirect(`/quickbooks-disconnected?realmId=${realmId}`);
   },
 );
 
