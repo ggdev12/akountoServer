@@ -2684,6 +2684,21 @@ router.post(
       return res.status(401).json({ message: "User not found." });
     }
 
+    const integration = await Integration.findOne({
+      where: {
+        CompanyId: companyId,
+        UserId: UserId,
+      },
+    });
+
+    if (!integration) {
+      return res.status(401).json({
+        message: "Integration not found."
+      })
+    }
+
+    const realmId = integration?.credentials?.realmId;
+
     const deleteInegrations = await Integration.destroy({
       where: {
         CompanyId: companyId,
@@ -2698,7 +2713,7 @@ router.post(
         .status(400)
         .json({ message: "Failed to disconnect the quickbooks integrations." });
     }
-    return res.status(200).json({ message: "Integration fetched." });
+    return res.redirect(`https://app.kounto.ai/quickbooks-disconnected?realmId=${realmId}`);
   },
 );
 
