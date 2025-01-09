@@ -2664,6 +2664,7 @@ router.get("/chat-data/:chatId/", authenticateToken, async (req, res) => {
     res.status(500).json({ success: false, meesage: "Internal server error" });
   }
 });
+
 router.post(
   "/delete-quickbooks-integration/:companyId",
   authenticateToken,
@@ -2672,53 +2673,79 @@ router.post(
     res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     res.header('Access-Control-Allow-Credentials', 'true');
-    const UserId = req.userId;
-    const companyId = req.params.companyId;
-    if (!UserId || !companyId) {
-      console.log("Missing token or companyId");
-      return res.status(400).json({ message: "Missing token or companyId." });
-    }
-    const findUser = await User.findOne({
-      where: {
-        id: UserId,
-      },
-    });
-    if (!findUser) {
-      console.log("User not found for userId --->>>", UserId);
-      return res.status(401).json({ message: "User not found." });
-    }
 
-    const integration = await Integration.findOne({
-      where: {
-        CompanyId: companyId,
-        UserId: UserId,
-      },
-    });
+    try {
+      const UserId = req.userId;
+      const companyId = req.params.companyId;
+      if (!UserId || !companyId) {
+        console.log("Missing token or companyId");
+        return res.status(400).json({ message: "Missing token or companyId." });
+      }
+      
+      // Find the integration record
+      const integration = await Integration.findOne({
+        where: {
+          CompanyId: companyId,
+          UserId: UserId,
+        },
+      });
 
-    if (!integration) {
-      return res.status(401).json({
-        message: "Integration not found."
-      })
+
+      if (!integration) {
+        return res.status(404).json({ message: "Integration not found." });
+      }
+
+      const { credentials } = integration;
+      const { refreshToken, realmId } = credentials;
+
+
+
+      if (!refreshToken) {
+        return res.status(400).json({ message: "Refresh token not found." });
+      }
+
+      // Revoke the token with QuickBooks
+      const encodedCredentials = Buffer.from(`${process.env.QUICKBOOKS_CLIENT_ID}:${process.env.QUICKBOOKS_CLIENT_SECRET}`).toString('base64');
+      
+      try {
+        await axios({
+          method: 'POST',
+          url: 'https://developer.api.intuit.com/v2/oauth2/tokens/revoke',
+          headers: {
+            'Authorization': `Basic ${encodedCredentials}`,
+            'Accept': 'application/json',
+            'Content-Type': 'application/x-www-form-urlencoded'
+          },
+          data: `token=${refreshToken}`
+        });
+      } catch (revokeError) {
+        console.error('Error revoking QuickBooks token:', revokeError);
+        // Continue with disconnection even if token revocation fails
+      }
+
+      // Delete the integration record
+      await Integration.destroy({
+        where: {
+          CompanyId: companyId,
+          UserId: UserId,
+        },
+      });
+
+      // Redirect to disconnect confirmation page with realmId
+      return res.status(200).json({ success: true });
+    } catch (error) {
+      console.error('Disconnection error:', {
+        message: error.message,
+        stack: error.stack,
+        statusCode: error.status || 500,
+      });
+      return res.status(error.status || 500).json({ 
+        success: false,
+        message: "Failed to disconnect QuickBooks integration.",
+        error: error.message 
+      });
     }
-
-    const realmId = integration?.credentials?.realmId;
-
-    const deleteInegrations = await Integration.destroy({
-      where: {
-        CompanyId: companyId,
-        UserId: UserId,
-      },
-    });
-    if (!deleteInegrations) {
-      console.log(
-        "Failed to delete the integrations of the user and the comopany with quickbooks.",
-      );
-      return res
-        .status(400)
-        .json({ message: "Failed to disconnect the quickbooks integrations." });
-    }
-    return res.redirect(`/quickbooks-disconnected?realmId=${realmId}`);
-  },
+  }
 );
 
 module.exports = router;
