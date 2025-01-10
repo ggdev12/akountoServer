@@ -2,6 +2,8 @@ const express = require("express");
 const router = express.Router();
 const { upload, downloadFileAsBuffer } = require("./../services/storage");
 const { Op, where } = require("sequelize");
+const axios = require('axios');  // Add this import
+
 
 const AI = require("../services/openai/index");
 
@@ -2677,40 +2679,20 @@ router.post(
     try {
       const UserId = req.userId;
       const companyId = req.params.companyId;
+      const { refreshToken } = req.body;  // Get refresh token from request body
+
       if (!UserId || !companyId) {
         console.log("Missing token or companyId");
         return res.status(400).json({ message: "Missing token or companyId." });
       }
-      
-      // Find the integration record
-      const integration = await Integration.findOne({
-        where: {
-          CompanyId: companyId,
-          UserId: UserId,
-        },
-      });
 
-
-      if (!integration) {
-        return res.status(404).json({ message: "Integration not found." });
-      }
-
-      const { credentials } = integration;
-      const { refreshToken, realmId } = credentials;
-
-
-
-      if (!refreshToken) {
-        return res.status(400).json({ message: "Refresh token not found." });
-      }
-
-      // Revoke the token with QuickBooks
+      // Use the provided refresh token for revocation
       const encodedCredentials = Buffer.from(`${process.env.QUICKBOOKS_CLIENT_ID}:${process.env.QUICKBOOKS_CLIENT_SECRET}`).toString('base64');
       
       try {
         await axios({
           method: 'POST',
-          url: 'https://developer.api.intuit.com/v2/oauth2/tokens/revoke',
+          url: 'https://oauth.platform.intuit.com/oauth2/v1/tokens/revoke',
           headers: {
             'Authorization': `Basic ${encodedCredentials}`,
             'Accept': 'application/json',
@@ -2731,14 +2713,9 @@ router.post(
         },
       });
 
-      // Redirect to disconnect confirmation page with realmId
       return res.status(200).json({ success: true });
     } catch (error) {
-      console.error('Disconnection error:', {
-        message: error.message,
-        stack: error.stack,
-        statusCode: error.status || 500,
-      });
+      console.error('Disconnection error:', error);
       return res.status(error.status || 500).json({ 
         success: false,
         message: "Failed to disconnect QuickBooks integration.",
