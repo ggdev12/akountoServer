@@ -370,25 +370,29 @@ class quickbooksApiClient {
   company = {
     getInfo: async () => {
       try {
-        const response = await fetch(
-          `${this.baseUrl}/companyinfo/${this.realmId}`,
-          {
-            method: "GET",
-            headers: {
-              Authorization: `Bearer ${this.accessToken}`,
-              Accept: "application/json",
-            },
-          },
-        );
-
-        if (!response.ok) throw new Error("Failed to fetch company info");
-        const data = await response.json();
-        return data.CompanyInfo;
+        await this.refreshOrSetToken();
+        
+        const url = `${this.baseUrl}/companyinfo/${this.realmId}?minorversion=70`;
+        
+        const response = await oauthClient.makeApiCall({
+          url: url,
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json"
+          }
+        });
+        return response.body.CompanyInfo;
       } catch (error) {
-        console.error("Error fetching company info:", error);
+        console.error('Error in getInfo:', {
+          message: error.message,
+          baseUrl: this.baseUrl,
+          realmId: this.realmId,
+          response: error.response?.data,
+          status: error.response?.status
+        });
         throw error;
       }
-    },
+    }
   };
 
   expenses = {
