@@ -353,12 +353,13 @@ router.get(
         console.log("Company not found for Integrations");
         return res.status(404).json({ error: "Company not found" });
       }
-
+      
       // Find latest integration for QuickBooks using correct column name 'service_type'
       const integration = await Integration.findOne({
         where: {
           CompanyId: req.params.companyId,
-          service_type: "Quickbooks", // Changed from 'type' to 'service_type'
+          service_type: "Quickbooks",
+          status: "Connected"  
         },
         order: [["createdAt", "DESC"]],
       });
@@ -371,33 +372,47 @@ router.get(
         });
       }
 
-      // Parse the credentials JSON string
-      let credentials;
+      // Parse integration credentials
+      const credentials = typeof integration.credentials === 'string' 
+        ? JSON.parse(integration.credentials) 
+        : integration.credentials;
+
+      
+
+      const quickBookClient = new quickbooksApiClient(credentials, integration.id);
+      
       try {
-        credentials = JSON.parse(integration.credentials);
-      } catch (e) {
-        credentials = {};
+        await quickBookClient.company.getInfo();
+        
+        return res.json({
+          hasActiveIntegration: true,
+          integrationStatus: "Connected",
+          message: "Active QuickBooks integration found"
+        });
+      } catch (apiError) {
+        
+        if (apiError.response?.status === 401) {
+          await integration.update({
+            status: "Disconnected",
+            credentials: JSON.stringify({})
+          });
+
+          return res.json({
+            hasActiveIntegration: false,
+            integrationStatus: "Disconnected",
+            message: "QuickBooks access has been revoked"
+          });
+        }
+        throw apiError;
       }
-
-      // Check if credentials exist and have required fields
-      const hasValidCredentials =
-        credentials && credentials.realmId && credentials.access_token;
-
-      res.json({
-        hasActiveIntegration: hasValidCredentials,
-        integrationStatus: integration.status, // Added status to response
-        message: hasValidCredentials
-          ? "Active QuickBooks integration found"
-          : "QuickBooks integration exists but is not active",
-      });
     } catch (error) {
-      console.error("Error checking integrations:", error);
-      res.status(500).json({
+      console.error("8. Final error:", error);
+      return res.status(500).json({
         error: "Failed to check integration status",
         message: error.message,
       });
     }
-  },
+  }
 );
 // Integration Routes
 router.post(
@@ -2697,10 +2712,10 @@ router.post(
 
       const clientId = process.env.quickbooksClientId;
       const clientSecret = process.env.quickbooksClientSec;
-      
+
       const encodedCredentials = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
 
-      try {
+         try {
         const revokeResponse = await axios({
           method: 'POST',
           url: 'https://developer.api.intuit.com/v2/oauth2/tokens/revoke',
