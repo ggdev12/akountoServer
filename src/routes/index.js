@@ -3,6 +3,7 @@ const router = express.Router();
 const { upload, downloadFileAsBuffer } = require("./../services/storage");
 const { Op, where } = require("sequelize");
 const axios = require('axios');  // Add this import
+const OAuthClient = require("intuit-oauth");
 
 
 const AI = require("../services/openai/index");
@@ -2671,52 +2672,72 @@ router.post(
   "/delete-quickbooks-integration/:companyId",
   authenticateToken,
   async (req, res) => {
-    res.header('Access-Control-Allow-Origin', 'https://app.kounto.ai');
-    res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    res.header('Access-Control-Allow-Credentials', 'true');
-
+    
     try {
       const UserId = req.userId;
       const companyId = req.params.companyId;
-      const { refreshToken } = req.body;  // Get refresh token from request body
 
-      if (!UserId || !companyId) {
-        console.log("Missing token or companyId");
-        return res.status(400).json({ message: "Missing token or companyId." });
-      }
-
-      // Use the provided refresh token for revocation
-      const encodedCredentials = Buffer.from(`${process.env.QUICKBOOKS_CLIENT_ID}:${process.env.QUICKBOOKS_CLIENT_SECRET}`).toString('base64');
-      
-      try {
-        await axios({
-          method: 'POST',
-          url: 'https://oauth.platform.intuit.com/oauth2/v1/tokens/revoke',
-          headers: {
-            'Authorization': `Basic ${encodedCredentials}`,
-            'Accept': 'application/json',
-            'Content-Type': 'application/x-www-form-urlencoded'
-          },
-          data: `token=${refreshToken}`
-        });
-      } catch (revokeError) {
-        console.error('Error revoking QuickBooks token:', revokeError);
-        // Continue with disconnection even if token revocation fails
-      }
-
-      // Delete the integration record
-      await Integration.destroy({
+      const integration = await Integration.findOne({
         where: {
           CompanyId: companyId,
           UserId: UserId,
-        },
+          service_type: "Quickbooks",
+          status: "Connected"
+        }
       });
 
-      return res.status(200).json({ success: true });
+      if (!integration) {
+        return res.status(404).json({ message: "Active integration not found" });
+      }
+
+      const credentials = typeof integration.credentials === 'string' 
+        ? JSON.parse(integration.credentials) 
+        : integration.credentials;
+
+
+      const clientId = process.env.quickbooksClientId;
+      const clientSecret = process.env.quickbooksClientSec;
+      
+      const encodedCredentials = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
+
+      try {
+        const revokeResponse = await axios({
+          method: 'POST',
+          url: 'https://developer.api.intuit.com/v2/oauth2/tokens/revoke',
+          headers: {
+            'Authorization': `Basic ${encodedCredentials}`,
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+          },
+          data: {
+            token: credentials.refresh_token
+          }
+        });
+
+        await Integration.destroy({
+          where: { 
+            CompanyId: companyId, 
+            UserId: UserId,
+            service_type: "Quickbooks"
+          }
+        });
+
+        console.log('7. Disconnect process complete');
+        return res.status(200).json({ success: true });
+
+      } catch (revokeError) {
+        console.error('5. Error with Intuit API:', revokeError.response?.data || revokeError);
+        console.error('Response status:', revokeError.response?.status);
+        console.error('Response headers:', revokeError.response?.headers);
+        console.error('Response data:', revokeError.response?.data);
+        
+        // Don't delete integration, throw error instead
+        throw new Error('Failed to revoke QuickBooks token');
+      }
+
     } catch (error) {
-      console.error('Disconnection error:', error);
-      return res.status(error.status || 500).json({ 
+      console.error('Error in disconnect process:', error);
+      return res.status(500).json({ 
         success: false,
         message: "Failed to disconnect QuickBooks integration.",
         error: error.message 
